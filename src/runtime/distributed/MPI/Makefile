@@ -4,9 +4,9 @@
 CFLAGS = -Wall -ansi -pedantic 
 LFLAGS = -lstdc++
 
-MPIProcess: mainMPI.cpp MPIProcess.h
-	mpicc $(CFLAGS) mainMPI.cpp -o MPIProcess $(LFLAGS)
+mainMPI: mainMPI.cpp MPIWrapper.h
+	mpicc $(CFLAGS) mainMPI.cpp -o mainMPI $(LFLAGS)
 # MPIProcess: MPIScatter.cpp
 # 	mpicc $(CFLAGS) MPIScatter.cpp -o MPIScatter $(LFLAGS)
 clean:
-	rm -f MPIProcess *# *~ *.o PI*
+	rm -f mainMPI *# *~ *.o PI*
