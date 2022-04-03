@@ -41,7 +41,18 @@ class MPIWrapper{
         int getRank(const MPI_Comm & communicator) const;
         int getNumberOfProcesses(const MPI_Comm & communicator) const;
         char * getHostName() const;
-        void execute(size_t numInputs, size_t numOutputs, int64_t *outRows, int64_t *outCols,  VectorSplit *splits, VectorCombine *combines);
+        void execute(const char *mlirCode,
+                 DT ***res,
+                 const Structure **inputs,
+                 size_t numInputs, size_t numOutputs, 
+                 int64_t *outRows, int64_t *outCols,  
+                 VectorSplit *splits, VectorCombine *combines);
+        void doComputation(DTRes **&res,
+                      size_t numOutputs,
+                      const Structure **args,
+                      size_t numInputs,
+                      const char *mlirCode,
+                      VectorCombine *combineVector);
     public:
         MPIWrapper(int & argc, char** & argv){
             //init the workers here
@@ -50,7 +61,7 @@ class MPIWrapper{
             MPI_Init(&argc, &argv);
             MPI_Comm_size(MPI_COMM_WORLD, &size);
             MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            current_comm = MPI_COMM_WORLDS;
+            current_comm = MPI_COMM_WORLD;
             n_procs = size;
             whoami = rank;
         }
@@ -141,16 +152,64 @@ inline int MPIWrapper::execute(const char *mlirCode,
 
         if (isBroadcast(splits[i], inputs[i])){
             if(whoami == 0){
-                MPI_Bcast(&(arr[0][0]), row*col, MPI_INT, senderRank, MPI_COMM_WORLD);
+                MPI_Bcast(&(inputs[i][0][0]), row*col, MPI_INT, 0, current_comm);
+                 
             }
         }
         else {
-            distribute(inputs[i], _ctx);
+            // we need to something like MPI_Scatter, but how do we partition the matrix? 
+            //distribute(inputs[i], _ctx);
+            //convert 2d into 1d array
+            if(whoami == 0){
+                int * data = (int *) malloc(sizeof(int) * row * col);
+                for (int q = 0; q < row; q++)
+                {
+                    for (int t = 0; t < col; t++)
+                    {
+                        data[q * col + t] = inputs[i][q][t];
+                    }
+                }
+                MPI_Scatter(data, row*col/numberOfProcesses, MPI_INT, temp, row*col/numberOfProcesses, MPI_INT, 0, current_comm);
+            }
         }
+        // do we need to tag whether the inputs[i] dataPlacement is true?
+        // DataPlacement::DistributedMap dataMap;
+        // while (!caller.isQueueEmpty()){
+        //     auto response = caller.getNextResult();
+        //     auto ix = response.storedInfo.ix;
+        //     auto workerAddr = response.storedInfo.workerAddr;
+
+        //     auto storedData = response.result;
+            
+        //     storedData.set_type(response.storedInfo.dataType);
+        //     DistributedData data(*ix, storedData);
+        //     dataMap[workerAddr] = data;
+        // }
+        // DataPlacement dataPlacement(dataMap);
+        // dataPlacement.isPlacedOnWorkers = true;
+        // mat->dataPlacement = dataPlacement;     
+
     }
+
+    //do the computation
+    doComputation();
+
+    //do collection
+    
     
 }
 
+inline int MPIWrapper::doComputation(){
+    distributed::Task task;
+    for (size_t i = 0; i < numInputs; i++) {
+        auto map =  args[i]->dataPlacement.getMap();
+        *task.add_inputs()->mutable_stored() = map[addr].getData();
+    }
+    task.set_mlir_code(mlirCode);
+    //StoredInfo storedInfo ({addr, nullptr});
+    // i dont understand what is the asynccomputecall doing
+    caller.asyncComputeCall(addr, storedInfo, task);
+}
 //we will have our definition of broadcast, collect, send and receive here. so replace runMPI with individual functionalities
 
 
