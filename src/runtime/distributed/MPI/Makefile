@@ -9,9 +9,13 @@ mainMPI: mainMPI.cpp MPIWrapper.h
 # MPIProcess: MPIScatter.cpp
 # 	mpicc $(CFLAGS) MPIScatter.cpp -o MPIScatter $(LFLAGS)
 clean:
+<<<<<<< HEAD
 	rm -f mainMPI *# *~ *.o PI*
 
 
 
 
 	
+=======
+	rm -f mainMPI *# *~ *.o PI*
+>>>>>>> 56978e9a0523cf8e7a9a7cc8d1e2b1233a53e5dc
