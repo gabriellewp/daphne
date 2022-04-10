@@ -106,9 +106,10 @@ add_executable(run_tests
 )
 
 add_dependencies(run_tests daphnec DistributedWorker)
+add_dependencies(run_tests daphne DistributedWorkerMPI)
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
-set(LIBS AllKernels ${dialect_libs} DataStructures DaphneDSLParser MLIRDaphne WorkerImpl Proto Util ${OPENBLAS_LIBRARIES})
+set(LIBS AllKernels ${dialect_libs} DataStructures DaphneDSLParser MLIRDaphne WorkerImpl MPIImpl Proto Util ${OPENBLAS_LIBRARIES})
 
 if(USE_CUDA AND CMAKE_CUDA_COMPILER)
     target_include_directories(run_tests PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
