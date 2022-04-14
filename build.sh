@@ -263,7 +263,7 @@ mpichInstDir=$(pwd)/$mpichDirName/installed
 if [ ! -d $mpichDirName ]
 then 
     wget https://www.mpich.org/static/downloads/$mpichVersion/mpich-$mpichVersion.tar.gz
-    tar -xvzf $mpichPackage.tar.gz
+    tar -xvzf $mpichPackage.tar.gz --no-same-owner
     mv $pwdBeforeMPICH/$mpichPackage $pwdBeforeMPICH/$mpichDirName
     mkdir --parents $mpichInstDir
     cd $mpichDirName
