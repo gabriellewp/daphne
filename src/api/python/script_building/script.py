@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# Modifications Copyright 2022 The DAPHNE Consortium
+#
 # -------------------------------------------------------------
 import os
 from typing import List, Dict, TYPE_CHECKING
@@ -70,7 +72,7 @@ class DaphneDSLScript:
         temp_out_file = open("tmpdaphne.daphne", "w")
         temp_out_file.writelines(self.daphnedsl_script)
         temp_out_file.close()
-        os.system("build/bin/daphnec tmpdaphne.daphne")
+        os.system("build/bin/daphne tmpdaphne.daphne")
 
     def _dfs_dag_nodes(self, dag_node: VALID_INPUT_TYPES)->str:
         """depth first search to create code from DAG

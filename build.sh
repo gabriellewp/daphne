@@ -77,12 +77,15 @@ initPwd=$(pwd)
 thirdpartyPath=$initPwd/thirdparty
 llvmCommitFilePath=$thirdpartyPath/llvm-last-built-commit.txt
 
+# a hotfix, to solve issue #216 @todo investigate possible side effects
+installLibDir=lib
+
 #******************************************************************************
 # Parse arguments
 #******************************************************************************
 
 # Defaults.
-target="daphnec"
+target="daphne"
 
 while [[ $# -gt 0 ]]
 do
@@ -111,7 +114,11 @@ done;
 
 
 # Make sure that the submodule(s) have been updated since the last clone/pull.
-git submodule update --init --recursive
+# But only if this is a git repo.
+if [ -d .git ]
+then
+    git submodule update --init --recursive
+fi
 
 
 #******************************************************************************
@@ -145,11 +152,14 @@ then
     mkdir --parents $antlrCppRuntimeDirName
     unzip $antlrCppRuntimeZipName -d $antlrCppRuntimeDirName
     cd $antlrCppRuntimeDirName
+    # Github disabled the unauthenticated git:// protocol, patch antlr4 to use https://
+    # until we upgrade to antlr4-4.9.3+
+    sed -i 's#git://github.com#https://github.com#' runtime/CMakeLists.txt
     rm -rf ./build
     mkdir -p build
     mkdir -p run
     cd build
-    cmake .. -G Ninja  -DANTLR_JAR_LOCATION=../$antlrJarName -DANTLR4_INSTALL=ON -DCMAKE_INSTALL_PREFIX=../run/usr/local
+    cmake .. -G Ninja  -DANTLR_JAR_LOCATION=../$antlrJarName -DANTLR4_INSTALL=ON -DCMAKE_INSTALL_PREFIX=../run/usr/local -DCMAKE_INSTALL_LIBDIR=$installLibDir
     cmake --build . --target install
 fi
 cd $pwdBeforeAntlr
@@ -294,7 +304,12 @@ cd $pwdBeforeMPICH
 
 llvmName=llvm-project
 cd $llvmName
-llvmCommit=$(git log -1 --format=%H)
+llvmCommit="llvmCommit-local-none"
+if [ -e .git ] # Note: .git in the submodule is not a directory.
+then
+    llvmCommit=$(git log -1 --format=%H)
+fi
+
 if [ ! -f $llvmCommitFilePath ] || [ $(cat $llvmCommitFilePath) != $llvmCommit ]
 then
     echo "Need to build MLIR/LLVM."
@@ -334,8 +349,12 @@ cmake -G Ninja .. \
     -DANTLR4_JAR_LOCATION=$thirdpartyPath/$antlrDirName/$antlrJarName \
     -DOPENBLAS_INST_DIR=$thirdpartyPath/$openBlasDirName/$openBlasInstDirName \
     -DCMAKE_PREFIX_PATH="$grpcInstDir" \
+<<<<<<< HEAD
     -DMPI_CXX_COMPILER=$mpichInstDir/bin/mpicxx \
     -DMPI_C_COMPILER=$mpichInstDir/bin/mpicc \
+=======
+    -DCMAKE_INSTALL_LIBDIR=$installLibDir
+>>>>>>> 77da1a77669eb490e11ec5f377ec0c93ef11e1e0
 # optional cmake flags (to be added to the command above):
 # -DUSE_CUDA=ON
 # -DCMAKE_BUILD_TYPE=Debug

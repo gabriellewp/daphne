@@ -22,7 +22,7 @@
 
 template<typename VT>
 void MTWrapper<DenseMatrix<VT>>::executeSingleQueue(
-        std::vector<std::function<typename MTWrapper<DenseMatrix<VT>>::PipelineFunc>> funcs, DenseMatrix<VT> ***res,
+        std::vector<std::function<typename MTWrapper<DenseMatrix<VT>>::PipelineFunc>> funcs, DenseMatrix<VT> ***res, bool* isScalar,
         Structure **inputs, size_t numInputs, size_t numOutputs, int64_t *outRows, int64_t *outCols,
         VectorSplit *splits, VectorCombine *combines, DCTX(ctx), bool verbose) {
     auto inputProps = this->getInputProperties(inputs, numInputs, splits);
@@ -55,11 +55,14 @@ void MTWrapper<DenseMatrix<VT>>::executeSingleQueue(
     // create tasks and close input
     uint64_t startChunk = 0;
     uint64_t endChunk = 0;
-    auto chunkParam = 1;
-    LoadPartitioning lp(STATIC, len, chunkParam, this->_numThreads, false);
+    int method=ctx->config.taskPartitioningScheme;
+    int chunkParam = ctx->config.minimumTaskSize;
+    if(chunkParam<=0)
+        chunkParam=1;
+    LoadPartitioning lp(method, len, chunkParam, this->_numThreads, false);
     while (lp.hasNextChunk()) {
         endChunk += lp.getNextChunk();
-        q->enqueueTask(new CompiledPipelineTask<DenseMatrix<VT>>(CompiledPipelineTaskData<DenseMatrix<VT>>{funcs,
+        q->enqueueTask(new CompiledPipelineTask<DenseMatrix<VT>>(CompiledPipelineTaskData<DenseMatrix<VT>>{funcs, isScalar,
                 inputs, numInputs, numOutputs, outRows, outCols, splits, combines, startChunk, endChunk, outRows,
                 outCols, 0, ctx}, resLock, res));
         startChunk = endChunk;
@@ -71,7 +74,7 @@ void MTWrapper<DenseMatrix<VT>>::executeSingleQueue(
 
 template<typename VT>
 [[maybe_unused]] void MTWrapper<DenseMatrix<VT>>::executeQueuePerDeviceType(
-        std::vector<std::function<typename MTWrapper<DenseMatrix<VT>>::PipelineFunc>> funcs, DenseMatrix<VT> ***res,
+        std::vector<std::function<typename MTWrapper<DenseMatrix<VT>>::PipelineFunc>> funcs, DenseMatrix<VT> ***res, bool* isScalar,
         Structure **inputs, size_t numInputs, size_t numOutputs, int64_t *outRows, int64_t *outCols,
         VectorSplit *splits, VectorCombine *combines, DCTX(ctx), bool verbose) {
     size_t device_task_len = 0ul;
@@ -103,7 +106,7 @@ template<typename VT>
     for (size_t i = 0; i < numOutputs; ++i) {
         res_cuda[i] = new DenseMatrix<VT>*;
         if(combines[i] == mlir::daphne::VectorCombine::ROWS) {
-            auto rc2 = static_cast<DenseMatrix<VT> *>((*res[i]))->slice(0, gpu_task_len);
+            auto rc2 = static_cast<DenseMatrix<VT> *>((*res[i]))->sliceRow(0, gpu_task_len);
             (*res_cuda[i]) = rc2;
         }
         else if(combines[i] == mlir::daphne::VectorCombine::COLS) {
@@ -116,7 +119,7 @@ template<typename VT>
 
     for (uint32_t k = 0; k < gpu_task_len; k += blksize) {
         q_cuda->enqueueTask(new CompiledPipelineTaskCUDA<DenseMatrix<VT>>(CompiledPipelineTaskData<DenseMatrix<VT>>{
-                funcs, inputs, numInputs, numOutputs, outRows, outCols, splits, combines, k, std::min(k + blksize, len),
+                funcs, isScalar, inputs, numInputs, numOutputs, outRows, outCols, splits, combines, k, std::min(k + blksize, len),
                 outRows, outCols, 0, ctx}, resLock, res_cuda));
     }
     q_cuda->closeInput();
@@ -134,10 +137,10 @@ template<typename VT>
         for (size_t i = 0; i < numOutputs; ++i) {
             res_cpp[i] = new DenseMatrix<VT> *;
             if(combines[i] == mlir::daphne::VectorCombine::ROWS) {
-                (*res_cpp[i]) = static_cast<DenseMatrix<VT> *>((*res[i]))->slice(device_task_len, len);
+                (*res_cpp[i]) = static_cast<DenseMatrix<VT> *>((*res[i]))->sliceRow(device_task_len, len);
             }
             else if(combines[i] == mlir::daphne::VectorCombine::COLS) {
-                (*res_cpp[i]) = static_cast<DenseMatrix<VT> *>((*res[i]))->slice(0, outRows[i], device_task_len, len);
+                (*res_cpp[i]) = static_cast<DenseMatrix<VT> *>((*res[i]))->sliceCol(device_task_len, len);
             }
             else {
                 (*res_cpp[i]) = (*res[i]);
@@ -146,12 +149,15 @@ template<typename VT>
 
         uint64_t startChunk = device_task_len;
         uint64_t endChunk = device_task_len;
-        auto chunkParam = 1;
-        LoadPartitioning lp(STATIC, cpu_task_len, chunkParam, this->_numCPPThreads, false);
+        int method=ctx->config.taskPartitioningScheme;
+        int chunkParam = ctx->config.minimumTaskSize;
+        if(chunkParam<=0)
+            chunkParam=1;
+        LoadPartitioning lp(method, len, chunkParam, this->_numThreads, false);
         while (lp.hasNextChunk()) {
             endChunk += lp.getNextChunk();
             q_cpp->enqueueTask(new CompiledPipelineTask<DenseMatrix<VT>>(CompiledPipelineTaskData<DenseMatrix<VT>>{
-                    funcs, inputs, numInputs, numOutputs, outRows, outCols, splits, combines, startChunk, endChunk,
+                    funcs, isScalar, inputs, numInputs, numOutputs, outRows, outCols, splits, combines, startChunk, endChunk,
                     outRows, outCols, offset, ctx}, resLock, res_cpp));
             startChunk = endChunk;
         }

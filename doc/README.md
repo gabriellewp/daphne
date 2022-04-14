@@ -16,11 +16,20 @@ limitations under the License.
 
 # Documentation
 
+- [Getting Started](/doc/GettingStarted.md)
+
+## User Documentation
+
+- Command-line interface API: see `build/bin/daphne --help`
+
+## Developer Documentation
+
 ### How-tos and Guidelines
 
-- [Getting Started](https://gitlab.know-center.tugraz.at/daphne/prototype/-/blob/master/doc/GettingStarted.md)
-- [Implementing a Built-in Kernel](https://gitlab.know-center.tugraz.at/daphne/prototype/-/blob/master/doc/ImplementBuiltinKernel.md)
-- [Binary Data Format](https://gitlab.know-center.tugraz.at/daphne/prototype/-/blob/master/doc/BinaryFormat.md)
+- [Implementing a Built-in Kernel](/doc/ImplementBuiltinKernel.md)
+- [Binary Data Format](/doc/BinaryFormat.md)
+- [DAPHNE Configuration: Getting Information from the User](/doc/Config.md)
+- [Extending DAPHNE with more scheduling knobs](/doc/ExtendingSchedulingKnobs.md)
 
 ### Source Code Documentation
 
