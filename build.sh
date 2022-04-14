@@ -349,12 +349,9 @@ cmake -G Ninja .. \
     -DANTLR4_JAR_LOCATION=$thirdpartyPath/$antlrDirName/$antlrJarName \
     -DOPENBLAS_INST_DIR=$thirdpartyPath/$openBlasDirName/$openBlasInstDirName \
     -DCMAKE_PREFIX_PATH="$grpcInstDir" \
-<<<<<<< HEAD
     -DMPI_CXX_COMPILER=$mpichInstDir/bin/mpicxx \
     -DMPI_C_COMPILER=$mpichInstDir/bin/mpicc \
-=======
     -DCMAKE_INSTALL_LIBDIR=$installLibDir
->>>>>>> 77da1a77669eb490e11ec5f377ec0c93ef11e1e0
 # optional cmake flags (to be added to the command above):
 # -DUSE_CUDA=ON
 # -DCMAKE_BUILD_TYPE=Debug
