@@ -18,11 +18,7 @@ TEMPLATE_PRODUCT_TEST_CASE("Simple distributed worker functionality test", TAG_D
             "  \"daphne.return\"() : () -> ()\n"
             "}\n");
         //where is the indication that the data should be distributed/broadcasted    
-<<<<<<< HEAD
         int status = mpiWorker.compute(task, result); 
-=======
-        int status = mpiWrapper.execute(task, result); 
->>>>>>> 56978e9a0523cf8e7a9a7cc8d1e2b1233a53e5dc
         
         cout << "status: " << status << endl;
     }

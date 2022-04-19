@@ -2,7 +2,7 @@
 #ifndef SRC_RUNTIME_DISTRIBUTED_MPIWORKER_H
 #define SRC_RUNTIME_DISTRIBUTED_MPIWORKER_H
 #include <ir/daphneir/Daphne.h>
-class MPIWorkerImpl{
+class MPIWorker{
     private:
         int rankId;
     public:
@@ -11,7 +11,7 @@ class MPIWorkerImpl{
                                  ::distributed::ComputeResult *response);
 }
 
-inline int MPIWorkerImpl::compute(const ::distributed::Task *request,
+inline int MPIWorker::compute(const ::distributed::Task *request,
                                  ::distributed::ComputeResult *response){
 
     //the content of this MPIWorker compute is almost similar to the distributedcompute kernel. But since distributecompute kernel only has computation by grpc, we put this class on this one
@@ -141,4 +141,4 @@ inline int MPIWorkerImpl::compute(const ::distributed::Task *request,
     }
     
 }
-#endif //SRC_RUNTIME_DISTRIBUTED_MPIWRAPPER_H
+#endif //SRC_RUNTIME_DISTRIBUTED_MPIWORKER_H

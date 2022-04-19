@@ -13,11 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-<<<<<<< HEAD
-//this is the coordinator class who handle the request to distribution by MPI
-=======
 
->>>>>>> 56978e9a0523cf8e7a9a7cc8d1e2b1233a53e5dc
 #ifndef SRC_RUNTIME_DISTRIBUTED_MPIWRAPPER_H
 #define SRC_RUNTIME_DISTRIBUTED_MPIWRAPPER_H
 
@@ -37,10 +33,6 @@ template <class DT>
 class MPIWrapper{
     private:
         int n_procs;
-<<<<<<< HEAD
-=======
-        int whoami;
->>>>>>> 56978e9a0523cf8e7a9a7cc8d1e2b1233a53e5dc
         char * hostname; 
         MPI_Comm current_comm;
         DCTX(_ctx);
@@ -54,29 +46,10 @@ class MPIWrapper{
                  size_t numInputs, size_t numOutputs, 
                  int64_t *outRows, int64_t *outCols,  
                  VectorSplit *splits, VectorCombine *combines);
-        void doComputation(DTRes **&res,
-                      size_t numOutputs,
-                      const Structure **args,
-                      size_t numInputs,
-                      const char *mlirCode,
-                      VectorCombine *combineVector);
     public:
-<<<<<<< HEAD
         MPIWrapper(MPI_Comm comm){
             MPI_Comm_size(comm, &n_procs);
             MPI_Comm_rank(comm, &whoami);
-=======
-        MPIWrapper(int & argc, char** & argv){
-            //init the workers here
-            int rank, size;
-            char* hostname;
-            MPI_Init(&argc, &argv);
-            MPI_Comm_size(MPI_COMM_WORLD, &size);
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            current_comm = MPI_COMM_WORLD;
-            n_procs = size;
-            whoami = rank;
->>>>>>> 56978e9a0523cf8e7a9a7cc8d1e2b1233a53e5dc
         }
         ~MPIWrapper() = default;
         
@@ -132,10 +105,6 @@ inline int MPIWrapper::execute(const char *mlirCode,
                  VectorSplit *splits, 
                  VectorCombine *combines) const {
     //set number of workers
-<<<<<<< HEAD
-=======
-    //do something
->>>>>>> 56978e9a0523cf8e7a9a7cc8d1e2b1233a53e5dc
     //get env of distributed workers, the env of distributed workers=IP:PORT,IP:PORT,IP:PORT, then we parse this so
     //the each of the worker in the workers vector will have their own IP:PORT
 
@@ -165,16 +134,16 @@ inline int MPIWrapper::execute(const char *mlirCode,
         // checking whether data is placed among many workers based on their dataPlacement attribute on Structure class (Distributed-ICCS)
         if (inputs[i]->dataPlacement.isPlacedOnWorkers == true)
             continue;
-
+        bool bcast = 0;
         if (isBroadcast(splits[i], inputs[i])){
             if(whoami == 0){
-                MPI_Bcast(&(inputs[i][0][0]), row*col, MPI_INT, 0, current_comm);
-<<<<<<< HEAD
+                bcast = 1;
+                while(bcast ==1){
+                    MPI_Bcast(&(inputs[i][0][0]), row*col, MPI_INT, whoami, current_comm);
+                    bcast 
+                }
                 //need to think to send the data by byte           
                 //does MPI_Bcast need barrier?
-=======
-                 
->>>>>>> 56978e9a0523cf8e7a9a7cc8d1e2b1233a53e5dc
             }
         }
         else {
@@ -191,11 +160,8 @@ inline int MPIWrapper::execute(const char *mlirCode,
                     }
                 }
                 MPI_Scatter(data, row*col/numberOfProcesses, MPI_INT, temp, row*col/numberOfProcesses, MPI_INT, 0, current_comm);
-<<<<<<< HEAD
                 // or use 
                 MPI_Allreduce();
-=======
->>>>>>> 56978e9a0523cf8e7a9a7cc8d1e2b1233a53e5dc
             }
         }
         // do we need to tag whether the inputs[i] dataPlacement is true?
@@ -218,7 +184,7 @@ inline int MPIWrapper::execute(const char *mlirCode,
     }
 
     //do the computation, this function can only start if we know the mlir code... 
-    doComputation();
+    MPIWorker.compute();
 
     //do results collection
     MPI_Datatype subRows;
@@ -232,138 +198,6 @@ inline int MPIWrapper::execute(const char *mlirCode,
     
 }
 
-<<<<<<< HEAD
-
-=======
-inline int MPIWrapper::doComputation(const ::distributed::Task *request,
-                                 ::distributed::ComputeResult *response){
-    distributed::Task task;
-    for (size_t i = 0; i < numInputs; i++) {
-        auto map =  args[i]->dataPlacement.getMap();
-        *task.add_inputs()->mutable_stored() = map[addr].getData();
-    }
-    task.set_mlir_code(mlirCode);
-    //task actually the request here
-    //StoredInfo storedInfo ({addr, nullptr});
-    //look into compute in WorkerImpl.cpp (DistributedICCS)
-    DaphneUserConfig cfg;
-    cfg.use_vectorized_exec = true;
-    // TODO Decide if vectorized pipelines should be used on this worker.
-    // TODO Decide if selectMatrixReprs should be used on this worker.
-    // TODO Once we hand over longer pipelines to the workers, we might not
-    // want to hardcode insertFreeOp to false anymore. But maybe we will insert
-    // the FreeOps at the coordinator already.
-    DaphneIrExecutor executor(false, false, cfg);
-
-    mlir::OwningModuleRef module(mlir::parseSourceString<mlir::ModuleOp>(request->mlir_code(), executor.getContext()));
-    if (!module) {
-        auto message = "Failed to parse source string.\n";
-        llvm::errs() << message;
-        return -1;
-        //return ::grpc::Status(::grpc::StatusCode::ABORTED, message);
-    }
-
-    auto *distOp = module->lookupSymbol(DISTRIBUTED_FUNCTION_NAME);
-    mlir::FuncOp distFunc;
-    if (!(distFunc = llvm::dyn_cast_or_null<mlir::FuncOp>(distOp))) {
-        auto message = "MLIR fragment has to contain `dist` FuncOp\n";
-        llvm::errs() << message;
-        return -1;
-        //return ::grpc::Status(::grpc::StatusCode::ABORTED, message);
-    }
-    auto distFuncTy = distFunc.getType();
-
-    std::vector<void *> inputs;
-    std::vector<void *> outputs;
-    auto packedInputsOutputs = createPackedCInterfaceInputsOutputs(distFuncTy,
-        request->inputs(),
-        outputs,
-        inputs);
-    
-    // Increase the reference counters of all inputs to the `dist` function.
-    // (But only consider data objects, not scalars.)
-    // This is necessary to avoid them from being destroyed within the
-    // function. Note that this increasing is in-line with the treatment of
-    // local function calls, where we also increase the inputs' reference
-    // counters before the call, for the same reason. See ManageObjsRefsPass
-    // for details.
-    for(size_t i = 0; i < inputs.size(); i++)
-        // TODO Use CompilerUtils::isObjType() once this branch has been rebased.
-        // if(CompilerUtils::isObjType(distFuncTy.getInput(i)))
-        if(distFuncTy.getInput(i).isa<mlir::daphne::MatrixType, mlir::daphne::FrameType>())
-            reinterpret_cast<Structure*>(inputs[i])->increaseRefCounter();
-
-    // Execution
-    // TODO Before we run the passes, we should insert information on shape
-    // (and potentially other properties) into the types of the arguments of
-    // the DISTRIBUTED_FUNCTION_NAME function. At least the shape can be
-    // obtained from the cached data partitions in localData_. Then, shape
-    // inference etc. should work within this function.
-    if (!executor.runPasses(module.get())) {
-        std::stringstream ss;
-        ss << "Module Pass Error.\n";
-        // module->print(ss, llvm::None);
-        llvm::errs() << ss.str();
-        return -1;
-        //return ::grpc::Status(::grpc::StatusCode::ABORTED, ss.str());
-    }
-
-    mlir::registerLLVMDialectTranslation(*module->getContext());
-
-    auto engine = executor.createExecutionEngine(module.get());
-    if (!engine) {
-        return ::grpc::Status(::grpc::StatusCode::ABORTED, "Failed to create JIT-Execution engine");
-    }
-    auto error = engine->invokePacked(DISTRIBUTED_FUNCTION_NAME,
-        llvm::MutableArrayRef<void *>{&packedInputsOutputs[0], (size_t)0});
-
-    if (error) {
-        std::stringstream ss("JIT-Engine invocation failed.");
-        llvm::errs() << "JIT-Engine invocation failed: " << error << '\n';
-        //return ::grpc::Status(::grpc::StatusCode::ABORTED, ss.str());
-        return -1;
-    }
-
-    for (auto zipped : llvm::zip(outputs, distFuncTy.getResults())) {
-        auto output = std::get<0>(zipped);
-        auto type = std::get<1>(zipped);
-
-        auto identification = "tmp_" + std::to_string(tmp_file_counter_++);
-        localData_[identification] = output;
-
-        distributed::WorkData::DataCase dataCase = dataCaseForType(type);
-
-        distributed::WorkData workData;
-        switch (dataCase) {
-        case distributed::WorkData::kStored: {
-            auto matTy = type.dyn_cast<mlir::daphne::MatrixType>();
-            if(matTy.getElementType().isa<mlir::Float64Type>()){
-                auto mat = static_cast<Matrix<double> *>(output);
-                workData.mutable_stored()->set_num_rows(mat->getNumRows());
-                workData.mutable_stored()->set_num_cols(mat->getNumCols());
-                if (matTy.getRepresentation() == mlir::daphne::MatrixRepresentation::Sparse)
-                    workData.mutable_stored()->set_type(distributed::StoredData::Type::StoredData_Type_CSRMatrix_f64);
-                else
-                    workData.mutable_stored()->set_type(distributed::StoredData::Type::StoredData_Type_DenseMatrix_f64);
-            } else {
-                auto mat = static_cast<Matrix<int64_t> *>(output);
-                workData.mutable_stored()->set_num_rows(mat->getNumRows());
-                workData.mutable_stored()->set_num_cols(mat->getNumCols());
-                if (matTy.getRepresentation() == mlir::daphne::MatrixRepresentation::Sparse)
-                    workData.mutable_stored()->set_type(distributed::StoredData::Type::StoredData_Type_CSRMatrix_i64);
-                else
-                    workData.mutable_stored()->set_type(distributed::StoredData::Type::StoredData_Type_DenseMatrix_i64);
-            }
-            workData.mutable_stored()->set_filename(identification);
-            break;
-        }
-        default: assert(false);
-        }
-        *response->add_outputs() = workData;
-    }
-    
-}
->>>>>>> 56978e9a0523cf8e7a9a7cc8d1e2b1233a53e5dc
 //we will have our definition of broadcast, collect, send and receive here. so replace runMPI with individual functionalities
 
 
