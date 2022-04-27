@@ -13,88 +13,63 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-
-#include "MPIProcess.h"
-void compute(int n_row, int n_col, double ** matrix){
-    //double * data = (double *) malloc(sizeof(double) * n * m);
-    for (int i = 0; i < n_row; i++) {
-        for (int j = 0; j < n_col; j++) {
-            cout << matrix[i*N + j]; << ", ";
-        }
-        cout << endl;
-    }
- 
-}
-int main (int argc, char ** argv) {
-    //init the workers here
-    //     //init 2d array
-    //     int ** arr;
-    //     int row = 4; int col = 3;
-    arr = new int * [row]; //allocate rows
-    for(int i=0; i< row; i++){
-        arr[i] = new int[col]; //allocate cols
-    }
-
-    for(int i=0; i<row; i++){
-        for(int j=0; j<col; j++){
-            arr[i][j] = 5;
-        }
-    }
-
-//    // mpiProc.runMPI(1, 1, 2, arr, row, col);
-//    // mpiProc.runMPI(2, 1, 2, arr, row, col);
-//    // mpiProc.runMPI(3, 0, 2, arr, row, col);
-//    // mpiProc.runMPI(4, 0, 2, arr, row, col);
-//     mpiProc.runMPI(5, NULL, 0, NULL, row, col);
+#include "MPIWrapper.h"
+#include <string>
+using namespace std;
+string_code hashit (std::string const& inString) {
+    if (inString == "compute") return compute;
+    if (inString == "broadcast") return broadcast;
+    if (inString == "distribute") return distribute;
     
-//     mpiProc.freeMatrix(arr);
-    int rank, size;
-    char* hostname;
-    //building the server like grpc main.cpp
-    MPI_Request request;
-    MPI_Status status;
+}
+int main (int argc, char ** argv) { //should be initialized by 2 workers
     MPI_Init(&argc, &argv);
-    hostname = new char[HOSTNAME_LENGTH];
-    int nameLength;
-    MPI_Get_processor_name(hostname, &nameLength);
-    cout << rank << " on " <<  hostname << " is initialized!" <<endl;
-    int rowChunkSize = row / size;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+    string command = "broadcast"; int command_length = 0;
+    bool waiting = true;
+    MPI_Comm child_comm;
 
-    // if(rank != 0){
-    //     float message;
-    //     int index;
-    //     MPI_Status status;
-    //     while(1){
-    //         message = (random()/(double)1147483648)+rank;
-    //         //MPI_Send(&(arr[0][0]), row*col, MPI_INT, recvRank, 0, MPI_COMM_WORLD);
-    //         //we need to partition the matrix,  split by??
-    //         //rather than using MPI_Isend maybe we can use MPI_Iscatter? but will it limit the partitioning only to by row (not sure if the partition by column is allowed)? and whether the partition chunk can be dynamic when using MPI_Iscatter
-    //         MPI_Isend(&message, 1, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &request);
+    while (waiting){
+        if(myrank==0){
+            //receive the mlir code or whatever from daphne
+            MPI_Send(message, message.size(), MPI_CHAR, 1, 0, MPI_COMM_WORLD);  
+        }else
+            MPI_Status status;
+            //probe for an incoming message from process zero
+            MPI_PROBE(MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+            //count the buffer size of incoming message
+            MPI_Get_count(&status, MPI_INT, &command_length);
+            char* command_buf = new char[command_length];
+            MPI_Recv(&command_buf, command_length, MPI_CHAR, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            cout<<"rank "<<rank<<"receive message from rank"<<0<<"commanding for "<<command_buf;
+            switch (hashit(command_buf)):
+                case compute:
+                    cout << "do compute" <<endl;
+                    //MPIWorker.compute();
+                case broadcast: 
+                    //spawn processes at another comm, and broadcast to them
+                    MPI_Comm_spawn( "./worker", MPI_ARGV_NULL, num_workers, MPI_INFO_NULL,
+                    0, MPI_COMM_WORLD,
+                    &child_comm, MPI_ERRCODES_IGNORE );
+                    MPI_Bcast(&command_buf, command_length, MPI_CHAR, MPI_ROOT, child_comm);
 
-    //         if(message > 1.5) //keep looping until the message generate 1.5
-    //         cout<<"Sending data from the process: "<< rank +0.1 << ", message:" <<  message<<endl;
-    //         break;
-    //     }
-    // }
-    // else{ //rank masters receiving the data
-    //     int dataOut = 13, pr;
-    //     float dataIn = -1;
-    //     //requestList = (MPI_Request*)malloc((size-1)*sizeof(MPI_Request));
-    //     while(1){
-    //         dataIn = -1; //allocated buffer to receive the message, can be 2d matrix as well
-    //         for(int proc=1;proc<size;proc++){
-    //             MPI_Recv(&dataIn, 1, MPI_FLOAT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD,&status);
-    //             cout<<"Receiving data from the process: " <<proc <<", message:"<< dataIn<<endl;
-                
-    //         }
-    //         //MPI_Wait(&request,&status);
-    //         if(dataIn > 1.5){
-    //             //cout<<"Receiving data from the process:"<< dataIn<<endl;
-    //             break;
-    //         }
-    //     }
-    // }
+                case distribute:
+                    //spawn processes at another comm, and broadcast to them
+                    MPI_Comm_spawn( "./worker", MPI_ARGV_NULL, num_workers, MPI_INFO_NULL,
+                    0, MPI_COMM_WORLD,
+                    &child_comm, MPI_ERRCODES_IGNORE );
+                    for(int i= 0; i <num_workers; i++){
+                        MPI_Send(&command_buf, command_length, MPI_CHAR, num_workers, child_comm);
+                    } 
+                default:
+                    cout << "do nothing" << endl;
+
+            //MPI Worker do something
+            delete[] command_buf;
+        }
+        
+    }
     MPI_Finalize();
-    delete [] hostname;
     return 0;
 }
