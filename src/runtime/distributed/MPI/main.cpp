@@ -60,7 +60,7 @@ int main (int argc, char ** argv) { //should be initialized by 2 workers
                     0, MPI_COMM_WORLD,
                     &child_comm, MPI_ERRCODES_IGNORE );
                     for(int i= 0; i <num_workers; i++){
-                        MPI_Send(&command_buf, command_length, MPI_CHAR, num_workers, child_comm);
+                        MPI_Send(&command_buf, command_length, MPI_CHAR, num_workers, 0, child_comm);
                     } 
                 default:
                     cout << "do nothing" << endl;

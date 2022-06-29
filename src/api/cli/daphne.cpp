@@ -277,3 +277,38 @@ main(int argc, char** argv)
 
     return StatusCode::SUCCESS;
 }
+
+int startDistributedWorkers(int argc, char ** argv){
+    MPIWorker worker;
+    worker.joinComputingTeam();
+    return StatusCode::SUCCESS;
+}
+int main(int argc, char** argv)
+{
+    //Options MPI
+    int id, size;
+    MPI_Init(NULL, NULL);
+    MPI_Comm_rank(MPI_COMM_WORLD, &id);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    char processor_name[MPI_MAX_PROCESSOR_NAME];
+    int name_len;
+    MPI_Get_processor_name(processor_name, &name_len);
+    printf("I am %d out of %d reside on %s\n", id, size, processor_name);
+    int res;
+
+    if(id==COORDINATOR){
+        res = startCoordinator(argc, argv);
+        printf("======Done======\n");
+        unsigned char *terminateMessage;
+        for(int i=1; i<size; i++){
+            MPI_Send(terminateMessage, 1, MPI_UNSIGNED_CHAR, i, DETACH, MPI_COMM_WORLD);
+            printf("coordinator detached worker %d\n", i);
+        }
+    }else
+        res = startDistributedWorkers(argc, argv);
+
+    MPI_Finalize();
+    return res;
+}    
+
+
