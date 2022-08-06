@@ -19,6 +19,8 @@
 #include <parser/daphnedsl/DaphneDSLParser.h>
 #include "compiler/execution/DaphneIrExecutor.h"
 #include <runtime/local/vectorized/LoadPartitioning.h>
+#include <runtime/distributed/worker/MPIWorker.h>
+#include "mpi.h"
 
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "mlir/IR/Builders.h"
