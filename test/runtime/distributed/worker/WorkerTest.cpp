@@ -155,10 +155,10 @@ TEMPLATE_PRODUCT_TEST_CASE("Simple distributed worker functionality test", TAG_D
             status = workerImpl.Transfer(&context, &result.outputs(0).stored(), &mat);
             REQUIRE(status.ok());
 
-            DT *matOrig = nullptr;
-            struct File *file = openFile(filename.c_str());
+
+            DenseMatrix<double> *matOrig = nullptr;
             char delim = ',';
-            readCsv(matOrig, file, rows, cols, delim);
+            readCsv(matOrig, filename.c_str(), rows, cols, delim);
 
             auto *received = DataObjectFactory::create<DT>(mat.num_rows(), mat.num_cols(), false);
             received->convertFromProto(mat);

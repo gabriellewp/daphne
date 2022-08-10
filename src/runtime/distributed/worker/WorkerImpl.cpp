@@ -394,12 +394,10 @@ Matrix<typename DT::VT> *WorkerImpl::readOrGetMatrix(const std::string &filename
             m = m2;
         }
         else {
-            DenseMatrix<typename DT::VT> *m2 = nullptr;
-            struct File *file = openFile(filename.c_str());
+            DenseMatrix<double> *m2 = nullptr;
             char delim = ',';
             // TODO use read
-            readCsv<DenseMatrix<typename DT::VT>>(m2, file, numRows, numCols, delim);
-            closeFile(file);
+            readCsv<DenseMatrix<double>>(m2, filename.c_str(), numRows, numCols, delim);
             m = m2;
         }
 //        auto result = localData_.insert({filename, m});
