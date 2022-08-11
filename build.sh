@@ -605,6 +605,7 @@ fi
 #------------------------------------------------------------------------------
 # gRPC
 #------------------------------------------------------------------------------
+$pwdBeforeGrpc=$(pwd)
 grpcDirName="grpc"
 grpcInstDir=$installPrefix
 if ! is_dependency_downloaded "grpc_v${grpcVersion}"; then
@@ -639,7 +640,7 @@ if ! is_dependency_installed "grpc_v${grpcVersion}"; then
 else
     daphne_msg "No need to build GRPC again."
 fi
-
+cd $pwdBeforeGrpc
 #------------------------------------------------------------------------------
 # Arrow / Parquet
 #------------------------------------------------------------------------------
@@ -662,7 +663,6 @@ if [[ "$BUILD_ARROW" == "-DUSE_ARROW=ON" ]]; then
         daphne_msg "No need to build Arrow again."
     fi
 fi
-cd $pwdBeforeGrpc
 
 #OpenMPI
 pwdBeforeOMPI=$(pwd)
